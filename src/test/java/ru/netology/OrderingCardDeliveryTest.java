@@ -26,6 +26,7 @@ class registrationTest{
     @Test
     void shouldRegisterByDeliverCard() {
         String planningDate = generateDate(4, "dd.MM.yyyy");
+        String firstDate = generateDate(5, "dd.MM.yyyy");
 
         Selenide.open("http://localhost:9999");
         SelenideElement form = $$("form").find(Condition.visible);
@@ -39,12 +40,13 @@ class registrationTest{
         form.$("[data-test-id='agreement']").click();
         $$("button").filter(Condition.visible).find(Condition.text("Запланировать")).click();
         $(Selectors.withText("Успешно!")).should(Condition.visible, Duration.ofSeconds(15));
-        $("[data-test-id='notification']").should(Condition.text("Встреча успешно забронирована на " + planningDate), Duration.ofSeconds(15)).should(Condition.visible);
-        form.$("[data-test-id='date'] input").should(Condition.visible)
-                .press(Keys.chord(Keys.SHIFT, Keys.HOME), Keys.DELETE)
-                .setValue(planningDate);
-        $$("button").filter(Condition.visible).find(Condition.text("Перепланировать")).click();
-        $("[data-test-id='success-notification']").should(Condition.visible, Duration.ofSeconds(15));
-        $(Selectors.withText("Успешно!")).should(Condition.visible, Duration.ofSeconds(15));
+        $("[data-test-id='success-notification']").should(Condition.text("Встреча успешно запланирована на " + planningDate), Duration.ofSeconds(15)).should(Condition.visible);
+        $("[data-test-id='date'] input").doubleClick().sendKeys(firstDate);
+        $$("button").find(Condition.text("Запланировать")).click();
+        $("[data-test-id='replan-notification']")
+                .shouldBe(Condition.visible, Duration.ofSeconds(15));
+        $$("button").find(Condition.text("Перепланировать")).click();
+        $("[data-test-id='success-notification']").shouldBe(Condition.visible, Duration.ofSeconds(15))
+                .shouldHave(Condition.text("Встреча успешно запланирована на " + firstDate));
     }
 }
