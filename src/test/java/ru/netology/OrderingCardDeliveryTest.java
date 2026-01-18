@@ -1,52 +1,80 @@
-package ru.netology;
-
 import com.codeborne.selenide.Condition;
-import com.codeborne.selenide.Selectors;
-import com.codeborne.selenide.Selenide;
 import com.codeborne.selenide.SelenideElement;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.openqa.selenium.Keys;
+import ru.netology.DataGenerator;
+import ru.netology.DataGenerator.UserInfo;
 
 import java.time.Duration;
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 
+import static com.codeborne.selenide.Condition.*;
 import static com.codeborne.selenide.Selenide.*;
 
 public class OrderingCardDeliveryTest {
-}
 
-class registrationTest{
+    private UserInfo user;
+    private String firstMeetingDate;
+    private String secondMeetingDate;
 
-    public String generateDate(int days, String pattern){
-        return LocalDate.now().plusDays(days).format(DateTimeFormatter.ofPattern(pattern));
+    @BeforeEach
+    void setup() {
+        open("http://localhost:9999");
+
+        user = DataGenerator.getRandomUserRu();
+
+        firstMeetingDate = DataGenerator.generateDate(4);
+        secondMeetingDate = DataGenerator.generateDate(7);
     }
 
-
     @Test
-    void shouldRegisterByDeliverCard() {
-        String planningDate = generateDate(4, "dd.MM.yyyy");
-        String firstDate = generateDate(5, "dd.MM.yyyy");
+    void shouldSuccessfullyPlanAndThenRescheduleMeeting() {
+        fillFormWith(user, firstMeetingDate);
+        clickPlanningButton();
 
-        Selenide.open("http://localhost:9999");
-        SelenideElement form = $$("form").find(Condition.visible);
-        form.$("[data-test-id='city'] input").setValue("Каза");
-        $$("div.popup__content div").find(Condition.text("Казань")).click();
-        form.$("[data-test-id='date'] input").should(Condition.visible)
-                .press(Keys.chord(Keys.SHIFT, Keys.HOME), Keys.DELETE)
-                .setValue(planningDate);
-        form.$("[data-test-id='name'] input").setValue("Петров Иван");
-        form.$("[data-test-id='phone'] input").setValue("+79000000000");
-        form.$("[data-test-id='agreement']").click();
-        $$("button").filter(Condition.visible).find(Condition.text("Запланировать")).click();
-        $(Selectors.withText("Успешно!")).should(Condition.visible, Duration.ofSeconds(15));
-        $("[data-test-id='success-notification']").should(Condition.text("Встреча успешно запланирована на " + planningDate), Duration.ofSeconds(15)).should(Condition.visible);
-        $("[data-test-id='date'] input").doubleClick().sendKeys(firstDate);
-        $$("button").find(Condition.text("Запланировать")).click();
-        $("[data-test-id='replan-notification']")
-                .shouldBe(Condition.visible, Duration.ofSeconds(15));
+        $("[data-test-id=success-notification]")
+                .should(Condition.visible, Duration.ofSeconds(15))
+                .should(Condition.text("Встреча успешно запланирована на " + firstMeetingDate), Duration.ofSeconds(15));
+
+        changeDateTo(secondMeetingDate);
+        clickPlanningButton();
+
+        $("[data-test-id=replan-notification]")
+                .should(Condition.visible, Duration.ofSeconds(15))
+                .should(Condition.text("У вас уже запланирована встреча на другую дату. Перепланировать?"));
+
         $$("button").find(Condition.text("Перепланировать")).click();
-        $("[data-test-id='success-notification']").shouldBe(Condition.visible, Duration.ofSeconds(15))
-                .shouldHave(Condition.text("Встреча успешно запланирована на " + firstDate));
+
+        $("[data-test-id=success-notification]")
+                .should(Condition.visible, Duration.ofSeconds(15))
+                .should(Condition.text("Встреча успешно запланирована на " + secondMeetingDate));
+    }
+
+    private void fillFormWith(UserInfo user, String meetingDate) {
+        $("[data-test-id=city] input").setValue(user.getCity());
+        $$(".menu div").find(Condition.text(user.getCity())).shouldBe(Condition.visible).click();
+
+        $("[data-test-id=date] input")
+                .should(Condition.visible)
+                .doubleClick()
+                .sendKeys(meetingDate);
+
+        $("[data-test-id=name] input").setValue(user.getName());
+        $("[data-test-id=phone] input").setValue(user.getPhone());
+
+        $("[data-test-id=agreement] .checkbox__text").click();
+    }
+
+    private void changeDateTo(String newDate) {
+        SelenideElement dateField = $("[data-test-id=date] input");
+        dateField.should(Condition.visible).doubleClick();
+        dateField.sendKeys(newDate);
+    }
+
+    private void clickPlanningButton() {
+        $$("button")
+                .filter(Condition.visible)
+                .find(Condition.text("Запланировать"))
+                .should(enabled)
+                .click();
     }
 }
